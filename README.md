@@ -1,4 +1,4 @@
-# Star Collector (Working Title)
+# StarDust Collector
 
 A minimal logic/puzzle game where you need to find and collect hidden stars using a limited number of bombs.
 
