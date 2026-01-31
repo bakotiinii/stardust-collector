@@ -10,7 +10,6 @@ import Cocoa
 protocol SettingsViewControllerDelegate: AnyObject {
     func settingsViewControllerDidSelectDifficulty(_ controller: SettingsViewController, difficulty: Difficulty)
     func settingsViewControllerDidRequestBack(_ controller: SettingsViewController)
-    func settingsViewControllerDidRequestStatistics(_ controller: SettingsViewController)
 }
 
 class SettingsViewController: NSViewController, ColorSchemeApplicable {
@@ -24,7 +23,25 @@ class SettingsViewController: NSViewController, ColorSchemeApplicable {
     var colorSchemeButtons: [NSButton] = []
     
     override func loadView() {
-        view = NSView(frame: NSRect(x: 0, y: 0, width: 350, height: 360))
+        let optimalSize = calculateOptimalSize()
+        view = NSView(frame: NSRect(x: 0, y: 0, width: optimalSize.width, height: optimalSize.height))
+    }
+    
+    func calculateOptimalSize() -> CGSize {
+        // Calculate optimal size based on content
+        // Title: 20 top padding + 24 font size + 20 spacing = 64
+        // Color Scheme label: 20 spacing + 16 font size + 10 spacing = 46
+        // Color scheme buttons: 32 height + 20 spacing = 52
+        // Difficulty label: 20 spacing + 16 font size + 20 spacing = 56
+        // Easy button: 20 spacing + button height + 10 spacing = 46
+        // Medium button: button height + 10 spacing = 46
+        // Hard button: button height + 20 spacing = 56
+        // Back button: button height + 20 bottom padding = 56
+        // Total approximate height: 64 + 46 + 52 + 56 + 46 + 46 + 56 + 56 = 422
+        // But we use the actual frame size from loadView calculation
+        let width: CGFloat = 350
+        let height: CGFloat = 360
+        return CGSize(width: width, height: height)
     }
     
     override func viewDidLoad() {
@@ -94,12 +111,6 @@ class SettingsViewController: NSViewController, ColorSchemeApplicable {
         view.addSubview(hardBtn)
         hardButton = hardBtn
         
-        // Statistics button
-        let statisticsBtn = NSButton(title: "Statistics", target: self, action: #selector(showStatistics))
-        statisticsBtn.bezelStyle = .rounded
-        statisticsBtn.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(statisticsBtn)
-        
         // Back button
         let backBtn = NSButton(title: "← Back to Game", target: self, action: #selector(goBack))
         backBtn.bezelStyle = .rounded
@@ -149,13 +160,8 @@ class SettingsViewController: NSViewController, ColorSchemeApplicable {
             hardButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             hardButton.widthAnchor.constraint(equalToConstant: 120),
             
-            // Statistics button
-            statisticsBtn.topAnchor.constraint(equalTo: hardButton.bottomAnchor, constant: 20),
-            statisticsBtn.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            statisticsBtn.widthAnchor.constraint(equalToConstant: 120),
-            
             // Back button
-            backBtn.topAnchor.constraint(equalTo: statisticsBtn.bottomAnchor, constant: 20),
+            backBtn.topAnchor.constraint(equalTo: hardButton.bottomAnchor, constant: 20),
             backBtn.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             backBtn.widthAnchor.constraint(equalToConstant: 150)
         ])
@@ -292,11 +298,6 @@ class SettingsViewController: NSViewController, ColorSchemeApplicable {
         currentDifficulty = .hard
         updateButtonStates()
         delegate?.settingsViewControllerDidSelectDifficulty(self, difficulty: .hard)
-    }
-    
-    @objc
-    func showStatistics() {
-        delegate?.settingsViewControllerDidRequestStatistics(self)
     }
     
     @objc

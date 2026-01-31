@@ -495,7 +495,10 @@ class GameScene: SKScene {
         
         // Restore rocks at saved positions (only if they're within bounds)
         for position in savedRockPositions {
-            guard position.row < gridSize && position.col < gridSize else { continue }
+            guard position.row >= 0 && position.row < gridSize && 
+                  position.col >= 0 && position.col < gridSize &&
+                  position.row < cells.count &&
+                  position.col < cells[position.row].count else { continue }
             cells[position.row][position.col].hasRock = true
             
             // Add rock icon
@@ -511,7 +514,10 @@ class GameScene: SKScene {
         
         // Restore stars at saved positions (only if they're within bounds)
         for position in savedStarPositions {
-            guard position.row < gridSize && position.col < gridSize else { continue }
+            guard position.row >= 0 && position.row < gridSize && 
+                  position.col >= 0 && position.col < gridSize &&
+                  position.row < cells.count &&
+                  position.col < cells[position.row].count else { continue }
             cells[position.row][position.col].hasStar = true
             
             // Add star dust around the star
@@ -763,8 +769,9 @@ class GameScene: SKScene {
             let newRow = row + dr
             let newCol = col + dc
             
-            // Check bounds
-            if newRow >= 0 && newRow < gridSize && newCol >= 0 && newCol < gridSize {
+            // Check bounds - verify both gridSize and cells array dimensions
+            if newRow >= 0 && newRow < gridSize && newCol >= 0 && newCol < gridSize &&
+               newRow < cells.count && newCol < cells[newRow].count {
                 let cell = cells[newRow][newCol]
                 // Don't add star dust to rocks or cells that already have stars
                 if !cell.hasRock && !cell.hasStar {
@@ -897,9 +904,11 @@ class GameScene: SKScene {
             let newRow = row + offset.dr
             let newCol = col + offset.dc
             
-            // Check bounds
+            // Check bounds - verify both gridSize and cells array dimensions
             guard newRow >= 0 && newRow < self.gridSize && 
-                  newCol >= 0 && newCol < self.gridSize else {
+                  newCol >= 0 && newCol < self.gridSize &&
+                  newRow < self.cells.count &&
+                  newCol < self.cells[newRow].count else {
                 // Out of bounds - stop this direction
                 onComplete()
                 return
@@ -1035,6 +1044,13 @@ class GameScene: SKScene {
     func showAllStarsAndRestart() {
         // Show all remaining stars
         for position in starPositions {
+            // Check bounds - verify both gridSize and cells array dimensions
+            guard position.row >= 0 && position.row < gridSize && 
+                  position.col >= 0 && position.col < gridSize &&
+                  position.row < cells.count &&
+                  position.col < cells[position.row].count else {
+                continue
+            }
             let cell = cells[position.row][position.col]
             if !cell.isDestroyed && cell.hasStar {
                 // Show star indicator

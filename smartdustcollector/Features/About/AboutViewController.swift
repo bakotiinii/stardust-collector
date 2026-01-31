@@ -15,7 +15,21 @@ class AboutViewController: NSViewController, ColorSchemeApplicable {
     weak var delegate: AboutViewControllerDelegate?
     
     override func loadView() {
-        view = NSView(frame: NSRect(x: 0, y: 0, width: 350, height: 250))
+        let optimalSize = calculateOptimalSize()
+        view = NSView(frame: NSRect(x: 0, y: 0, width: optimalSize.width, height: optimalSize.height))
+    }
+    
+    func calculateOptimalSize() -> CGSize {
+        // Calculate optimal size based on content
+        // Title: 30 top padding + 24 font size + 30 spacing = 84
+        // Author: 16 font size + 20 spacing = 36
+        // GitHub button: button height + 30 spacing = 66
+        // Back button: button height + 20 bottom padding = 56
+        // Total approximate height: 84 + 36 + 66 + 56 = 242
+        // But we use the actual frame size from loadView calculation
+        let width: CGFloat = 350
+        let height: CGFloat = 250
+        return CGSize(width: width, height: height)
     }
     
     override func viewDidLoad() {

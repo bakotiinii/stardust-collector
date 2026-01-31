@@ -51,6 +51,46 @@ class GameContainerViewController: NSViewController,
         }
     }
     
+    func repositionWindowUnderGamepadIcon() {
+        guard let popover = findPopover(),
+              popover.isShown,
+              let window = view.window,
+              let button = AppDelegate.shared.statusBarItem?.button,
+              let buttonWindow = button.window else { return }
+        
+        // Get current window size (use popover contentSize for accuracy)
+        let currentSize = popover.contentSize
+        
+        // Get button frame in screen coordinates
+        let buttonFrame = button.convert(button.bounds, to: nil)
+        let buttonScreenRect = buttonWindow.convertToScreen(buttonFrame)
+        
+        // Calculate button center X and bottom Y in screen coordinates
+        let buttonCenterX = buttonScreenRect.midX
+        let buttonBottomY = buttonScreenRect.minY  // Bottom edge of button
+        
+        // Position window so its top edge is at the button's bottom edge
+        // macOS uses bottom-left origin for screen coordinates
+        let windowY = buttonBottomY - currentSize.height
+        
+        // Center window horizontally on button
+        let windowX = buttonCenterX - currentSize.width / 2
+        
+        let targetFrame = NSRect(
+            x: windowX,
+            y: windowY,
+            width: currentSize.width,
+            height: currentSize.height
+        )
+        
+        // Reposition window to keep it centered directly under the button
+        window.setFrame(targetFrame, display: true, animate: false)
+        
+        // Force layout update to ensure everything is properly rendered
+        view.needsLayout = true
+        view.layout()
+    }
+    
     func resizeWindowToSize(_ newSize: CGSize) {
         guard let popover = findPopover(),
               let button = AppDelegate.shared.statusBarItem?.button else { return }
@@ -86,28 +126,75 @@ class GameContainerViewController: NSViewController,
             aboutVC.view.frame = view.bounds
         }
         
-        // Set new content size for popover (this resizes the window instantly)
-        popover.contentSize = newSize
-        
-        // Reposition popover window to maintain centered alignment relative to status bar button
-        // When popover resizes, macOS may shift it - we compensate by adjusting position
+        // Reposition popover window to keep it centered directly under the button
+        // Calculate position BEFORE setting contentSize to avoid timing issues
+        var targetFrame: NSRect?
         if popover.isShown, let window = view.window, let buttonWindow = button.window {
-            // Get button center in screen coordinates
+            // Get button frame in screen coordinates
             let buttonFrame = button.convert(button.bounds, to: nil)
             let buttonScreenRect = buttonWindow.convertToScreen(buttonFrame)
-            let buttonCenterX = buttonScreenRect.midX
             
-            // Calculate new window position to keep it centered horizontally on button
-            // The popover is anchored to the bottom of the button (minY), so we only adjust X
-            let newFrame = NSRect(
-                x: buttonCenterX - newSize.width / 2,
-                y: window.frame.origin.y,
+            // Calculate button center X and bottom Y in screen coordinates
+            let buttonCenterX = buttonScreenRect.midX
+            let buttonBottomY = buttonScreenRect.minY  // Bottom edge of button
+            
+            // Position window so its top edge is at the button's bottom edge
+            // macOS uses bottom-left origin for screen coordinates
+            let windowY = buttonBottomY - newSize.height
+            
+            // Center window horizontally on button
+            let windowX = buttonCenterX - newSize.width / 2
+            
+            targetFrame = NSRect(
+                x: windowX,
+                y: windowY,
                 width: newSize.width,
                 height: newSize.height
             )
-            
-            // Set new frame synchronously to avoid visible shift
-            window.setFrame(newFrame, display: true, animate: false)
+        }
+        
+        // Set new content size for popover (this resizes the window instantly)
+        popover.contentSize = newSize
+        
+        // Immediately reposition window to keep it anchored to the button
+        if let frame = targetFrame, let window = view.window {
+            window.setFrame(frame, display: true, animate: false)
+        }
+        
+        // Also reposition after a brief delay to ensure it stays correct
+        // This handles cases where macOS might adjust the position after contentSize change
+        if popover.isShown {
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self,
+                      let popover = self.findPopover(),
+                      popover.isShown,
+                      let window = self.view.window,
+                      let button = AppDelegate.shared.statusBarItem?.button,
+                      let buttonWindow = button.window else { return }
+                
+                // Recalculate button position
+                let buttonFrame = button.convert(button.bounds, to: nil)
+                let buttonScreenRect = buttonWindow.convertToScreen(buttonFrame)
+                
+                let buttonCenterX = buttonScreenRect.midX
+                let buttonBottomY = buttonScreenRect.minY
+                
+                let windowY = buttonBottomY - newSize.height
+                let windowX = buttonCenterX - newSize.width / 2
+                
+                let correctFrame = NSRect(
+                    x: windowX,
+                    y: windowY,
+                    width: newSize.width,
+                    height: newSize.height
+                )
+                
+                // Only reposition if current position is different (avoid unnecessary updates)
+                if abs(window.frame.origin.x - correctFrame.origin.x) > 1 ||
+                   abs(window.frame.origin.y - correctFrame.origin.y) > 1 {
+                    window.setFrame(correctFrame, display: true, animate: false)
+                }
+            }
         }
         
         // Force layout update to ensure everything is properly sized
@@ -126,10 +213,6 @@ class GameContainerViewController: NSViewController,
         if let gameScene = skView.scene as? GameScene {
             gameScene.restartGameAfterResize()
         }
-    }
-    
-    func settingsViewControllerDidRequestStatistics(_ controller: SettingsViewController) {
-        showStatisticsView()
     }
     
     func statisticsViewControllerDidRequestBack(_ controller: StatisticsViewController) {
@@ -185,11 +268,44 @@ class GameContainerViewController: NSViewController,
         // Show game view
         skView.isHidden = false
         
-        // Update popover size
+        // Update skView frame to match view bounds
+        skView.frame = view.bounds
+        
+        // Update popover size and rerender game based on current difficulty
         if let gameScene = skView.scene as? GameScene {
+            // Ensure game scene has current difficulty
+            gameScene.difficulty = currentDifficulty
             let optimalSize = gameScene.calculateOptimalSize()
-            gameScene.size = optimalSize
             resizeWindowToSize(optimalSize)
+            
+            // Force rerender by calling layoutGame after a brief delay to ensure window resize is complete
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self, let scene = self.skView.scene as? GameScene else { return }
+                // Ensure difficulty is still set correctly
+                scene.difficulty = self.currentDifficulty
+                // Update scene size to match current view bounds
+                scene.size = self.view.bounds.size
+                // Update skView frame again to ensure it matches
+                self.skView.frame = self.view.bounds
+                // Recalculate cell size and layout the game
+                scene.calculateCellSize()
+                scene.layoutGame()
+                // Reposition window under gamepad icon after rendering
+                self.repositionWindowUnderGamepadIcon()
+            }
+        } else {
+            // Fallback: if scene doesn't exist, create it with correct difficulty
+            // This shouldn't normally happen, but handle it gracefully
+            loadBombStarsGame()
+            if let gameScene = skView.scene as? GameScene {
+                gameScene.difficulty = currentDifficulty
+                let optimalSize = gameScene.calculateOptimalSize()
+                resizeWindowToSize(optimalSize)
+                // Reposition window under gamepad icon
+                DispatchQueue.main.async { [weak self] in
+                    self?.repositionWindowUnderGamepadIcon()
+                }
+            }
         }
     }
     
@@ -228,10 +344,15 @@ class GameContainerViewController: NSViewController,
             } else {
                 // Fallback to settings size if game scene not available
                 if let settingsVC = settingsViewController {
-                    let settingsSize = settingsVC.view.frame.size
+                    let settingsSize = settingsVC.calculateOptimalSize()
                     resizeWindowToSize(settingsSize)
                 }
             }
+        }
+        
+        // Reposition window under gamepad icon after mode change
+        DispatchQueue.main.async { [weak self] in
+            self?.repositionWindowUnderGamepadIcon()
         }
     }
     
@@ -256,11 +377,26 @@ class GameContainerViewController: NSViewController,
         statisticsViewController?.view.isHidden = false
         statisticsViewController?.updateStatistics()
         
-        // Update popover size
-        if let popover = findPopover(),
-           let statsVC = statisticsViewController {
-            let statsSize = statsVC.view.frame.size
-            resizeWindowToSize(statsSize)
+        // Update popover size - use optimal game size for current difficulty
+        // This ensures window size matches the game mode size
+        if let popover = findPopover() {
+            if let gameScene = skView.scene as? GameScene {
+                // Ensure game scene has current difficulty before calculating optimal size
+                gameScene.difficulty = currentDifficulty
+                let optimalSize = gameScene.calculateOptimalSize()
+                resizeWindowToSize(optimalSize)
+            } else {
+                // Fallback: create a temporary scene to calculate size if scene not available
+                let tempScene = GameScene(size: CGSize(width: 100, height: 100))
+                tempScene.difficulty = currentDifficulty
+                let optimalSize = tempScene.calculateOptimalSize()
+                resizeWindowToSize(optimalSize)
+            }
+        }
+        
+        // Reposition window under gamepad icon after mode change
+        DispatchQueue.main.async { [weak self] in
+            self?.repositionWindowUnderGamepadIcon()
         }
     }
     
@@ -284,11 +420,26 @@ class GameContainerViewController: NSViewController,
         // Show about view
         aboutViewController?.view.isHidden = false
         
-        // Update popover size
-        if let popover = findPopover(),
-           let aboutVC = aboutViewController {
-            let aboutSize = aboutVC.view.frame.size
-            resizeWindowToSize(aboutSize)
+        // Update popover size - use optimal game size for current difficulty
+        // This ensures window size matches the game mode size
+        if let popover = findPopover() {
+            if let gameScene = skView.scene as? GameScene {
+                // Ensure game scene has current difficulty before calculating optimal size
+                gameScene.difficulty = currentDifficulty
+                let optimalSize = gameScene.calculateOptimalSize()
+                resizeWindowToSize(optimalSize)
+            } else {
+                // Fallback: create a temporary scene to calculate size if scene not available
+                let tempScene = GameScene(size: CGSize(width: 100, height: 100))
+                tempScene.difficulty = currentDifficulty
+                let optimalSize = tempScene.calculateOptimalSize()
+                resizeWindowToSize(optimalSize)
+            }
+        }
+        
+        // Reposition window under gamepad icon after mode change
+        DispatchQueue.main.async { [weak self] in
+            self?.repositionWindowUnderGamepadIcon()
         }
     }
     

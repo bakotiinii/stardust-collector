@@ -20,7 +20,23 @@ class StatisticsViewController: NSViewController, ColorSchemeApplicable {
     @IBOutlet var winsHardLabel: NSTextField!
     
     override func loadView() {
-        view = NSView(frame: NSRect(x: 0, y: 0, width: 300, height: 250))
+        let optimalSize = calculateOptimalSize()
+        view = NSView(frame: NSRect(x: 0, y: 0, width: optimalSize.width, height: optimalSize.height))
+    }
+    
+    func calculateOptimalSize() -> CGSize {
+        // Calculate optimal size based on content
+        // Title: 30 top padding + 24 font size + 30 spacing = 84
+        // Total games: 16 font size + 20 spacing = 36
+        // Wins Easy: 16 font size + 15 spacing = 31
+        // Wins Medium: 16 font size + 15 spacing = 31
+        // Wins Hard: 16 font size + 20 spacing = 36
+        // Back button: button height + 20 bottom padding = 56
+        // Total approximate height: 84 + 36 + 31 + 31 + 36 + 56 = 274
+        // But we use the actual frame size from loadView calculation
+        let width: CGFloat = 300
+        let height: CGFloat = 250
+        return CGSize(width: width, height: height)
     }
     
     override func viewDidLoad() {

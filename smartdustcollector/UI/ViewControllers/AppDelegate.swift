@@ -129,7 +129,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if let viewController = popover.contentViewController {
                 popover.contentSize = viewController.view.frame.size
             }
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .maxY)
             NSApp.activate(ignoringOtherApps: true)
         }
     }
@@ -144,6 +144,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             settingsItem.image = NSImage(systemSymbolName: "gearshape", accessibilityDescription: "Settings")
         }
         menu.addItem(settingsItem)
+        
+        // Statistics menu item with icon
+        let statisticsItem = NSMenuItem(title: "Statistics", action: #selector(showStatistics), keyEquivalent: "")
+        statisticsItem.target = self
+        if #available(macOS 11.0, *) {
+            statisticsItem.image = NSImage(systemSymbolName: "chart.bar", accessibilityDescription: "Statistics")
+        }
+        menu.addItem(statisticsItem)
         
         // Separator
         menu.addItem(NSMenuItem.separator())
@@ -182,12 +190,31 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if let viewController = popover.contentViewController {
                 popover.contentSize = viewController.view.frame.size
             }
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .maxY)
             NSApp.activate(ignoringOtherApps: true)
         }
         
         // Switch to settings view
         gameContainerVC.showSettingsView()
+    }
+    
+    @objc
+    func showStatistics() {
+        guard let popover = popover,
+              let gameContainerVC = popover.contentViewController as? GameContainerViewController,
+              let button = statusBarItem?.button else { return }
+        
+        // Show popover if not already shown
+        if !popover.isShown {
+            if let viewController = popover.contentViewController {
+                popover.contentSize = viewController.view.frame.size
+            }
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .maxY)
+            NSApp.activate(ignoringOtherApps: true)
+        }
+        
+        // Switch to statistics view
+        gameContainerVC.showStatisticsView()
     }
     
     @objc
@@ -201,7 +228,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if let viewController = popover.contentViewController {
                 popover.contentSize = viewController.view.frame.size
             }
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .maxY)
             NSApp.activate(ignoringOtherApps: true)
         }
         
