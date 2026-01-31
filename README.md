@@ -20,7 +20,7 @@ A minimal logic/puzzle game where you need to find and collect hidden stars usin
 - **Left click** on a closed cell → place a **bomb**
 - Maximum number of bombs varies by difficulty level
 - You **cannot** place a bomb on an already opened cell
-- 1 second after placing, each bomb explodes and **destroys** boxes in a **3×3 area** centered on itself (1 cell in each direction)
+- 1 second after placing, each bomb explodes and **destroys** boxes in a **cross area** centered on itself (2 cells in each direction)
 - If a star was inside any destroyed box → the star is **collected**
 
 ### Goal:
